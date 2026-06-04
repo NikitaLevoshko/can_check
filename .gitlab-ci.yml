@@ -1,0 +1,21 @@
+stages:
+  - build
+
+build-windows-exe:
+  stage: build
+  image: python:3.12-bookworm
+  tags:
+    - windows-runner  # Убедитесь, что у вас есть Windows runner
+  
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install pyinstaller rich pytest python-can
+
+  script:
+    - pyinstaller --onefile --console --name=can_check_tool ui.py
+
+  artifacts:
+    paths:
+      - dist/can_check_tool.exe
+    expire_in: 7 days

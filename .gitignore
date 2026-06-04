@@ -1,0 +1,11 @@
+**/__pycache__**
+**/__pycache__/**
+__pycache__
+**.pytest_cache
+*/settings.json
+**.venv
+**.vscode
+**.ruff_cache
+**/test_debug.py
+**/output
+pyproject.toml
