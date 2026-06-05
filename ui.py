@@ -10,15 +10,25 @@ import platform
 
 IS_WINDOWS = platform.system() == "Windows"
 
+# Определение базовой директории (критично для .exe)
+if getattr(sys, 'frozen', False):
+    # Если запущен как .exe
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    # Если запущен как обычный скрипт
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Переключаем рабочую директорию на место расположения exe
+os.chdir(BASE_DIR)
 
 def main(write_and_read, ui, restart_menu):
     while True:
         test_number = ui(write_and_read)
         if test_number == "1":
-            # КРИТИЧНО: используем sys.executable -m pytest вместо os.system
-            subprocess.run(
-                [sys.executable, "-m", "pytest", "src/tests/test_can.py"],
-                cwd=os.path.dirname(os.path.abspath(__file__))
+            # Запускаем pytest через текущий интерпретатор (внутри exe это встроенный python)
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest", "src/tests/test_can.py", "-v"],
+                cwd=BASE_DIR  # Явно указываем, откуда запускать
             )
         elif test_number == "00":
             break
