@@ -10,26 +10,26 @@ import platform
 
 IS_WINDOWS = platform.system() == "Windows"
 
-# Определение базовой директории (критично для .exe)
-if getattr(sys, 'frozen', False):
-    # Если запущен как .exe
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    # Если запущен как обычный скрипт
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+def resource_path(relative_path):
+    """Возвращает абсолютный путь к ресурсу (работает и для .exe, и для скрипта)"""
+    if getattr(sys, 'frozen', False):
+        # Запущен как .exe — файлы во временной папке
+        base_path = sys._MEIPASS
+    else:
+        # Запущен как скрипт — файлы рядом
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
 
-# Переключаем рабочую директорию на место расположения exe
-os.chdir(BASE_DIR)
 
 def main(write_and_read, ui, restart_menu):
     while True:
         test_number = ui(write_and_read)
         if test_number == "1":
-            # Запускаем pytest через текущий интерпретатор (внутри exe это встроенный python)
+            test_file = resource_path("src/tests/test_can.py")
             result = subprocess.run(
-                [sys.executable, "-m", "pytest", "src/tests/test_can.py", "-v"],
-                cwd=BASE_DIR  # Явно указываем, откуда запускать
-            )
+                [sys.executable, "-m", "pytest", test_file, "-v"],
+                cwd=os.path.dirname(test_file)
+                )
         elif test_number == "00":
             break
         elif test_number == "0":
