@@ -5,42 +5,69 @@ from rich.panel import Panel
 from rich.text import Text
 import os
 import sys
-import subprocess
 import platform
+import can
+import subprocess
 
 IS_WINDOWS = platform.system() == "Windows"
 
-def resource_path(relative_path):
-    """Возвращает абсолютный путь к ресурсу (работает и для .exe, и для скрипта)"""
-    if getattr(sys, 'frozen', False):
-        # Запущен как .exe — файлы во временной папке
-        base_path = sys._MEIPASS
+
+def get_can_bus():
+    """Создает CAN-шину в зависимости от ОС"""
+    if IS_WINDOWS:
+        # Для Windows обычно используется pcan, kvaser или vector
+        # Укажите здесь ваш реальный интерфейс и канал!
+        return can.Bus(interface='pcan', channel='PCAN_USBBUS1', bitrate=500000)
     else:
-        # Запущен как скрипт — файлы рядом
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
+        # Для Linux (Orange Pi)
+        return can.Bus(interface='socketcan', channel='can0', bitrate=500000)
 
 
 def main(write_and_read, ui, restart_menu):
     while True:
         test_number = ui(write_and_read)
+        
         if test_number == "1":
-            test_file = resource_path("src/tests/test_can.py")
-            test_dir = os.path.dirname(test_file)
+            console = Console()
+            console.print("\n[bold cyan]Инициализация CAN-шины...[/]")
             
-            # Устанавливаем PYTHONPATH, чтобы pytest видел все модули внутри exe
-            env = os.environ.copy()
-            if getattr(sys, 'frozen', False):
-                # Добавляем корень временной папки _MEIPASS в путь поиска
-                env['PYTHONPATH'] = sys._MEIPASS
+            bus = None
+            try:
+                # Создаем шину
+                bus = get_can_bus()
+                console.print("[green]Шина открыта. Запуск теста...[/]\n")
+                
+                # Импортируем тест только в момент запуска (безопаснее для exe)
+                from src.tests.test_can import test_can_check_msgs
+                
+                # Передаем созданную шину в тест
+                test_can_check_msgs(bus)
+                
+                console.print("\n[bold green]✅ Тест успешно завершен![/]")
+                
+            except ImportError as e:
+                console.print(f"\n[bold red]❌ Ошибка импорта теста: {e}[/]")
+                console.print("[yellow]Убедитесь, что src/tests/test_can.py существует[/]")
+                
+            except can.CanError as e:
+                console.print(f"\n[bold red]❌ Ошибка CAN: {e}[/]")
+                console.print("[yellow]Проверьте подключение адаптера и драйверы[/]")
+                
+            except AssertionError as e:
+                console.print(f"\n[bold red]❌ Assert failed: {e}[/]")
+                
+            except Exception as e:
+                console.print(f"\n[bold red]❌ Неожиданная ошибка: {type(e).__name__}: {e}[/]")
             
-            
-            result = subprocess.run(
-                [sys.executable, "-m", "pytest", test_file, "-v"],
-                cwd=test_dir,
-                env=env  # Передаём модифицированное окружение
-            )
-                 
+            finally:
+                # Всегда закрываем шину, даже если тест упал
+                if bus is not None:
+                    bus.shutdown()
+                    console.print("[dim]Шина закрыта.[/]")
+                    
+            # ️ КРИТИЧНО: Пауза перед возвратом в меню
+            input("\nНажмите Enter для продолжения...")
+
         elif test_number == "00":
             break
         elif test_number == "0":
