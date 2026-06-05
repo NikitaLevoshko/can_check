@@ -28,7 +28,7 @@ def get_can_bus():
         # return can.Bus(interface='pcan', channel='PCAN_USBBUS1', bitrate=500000)
     else:
         # Для Linux (Orange Pi)
-        return can.Bus(interface='socketcan', channel='can0', bitrate=500000)
+        return can.Bus(interface='socketcan', channel='can1', bitrate=500000)
 
 
 def main(write_and_read, ui, restart_menu):
@@ -72,9 +72,6 @@ def main(write_and_read, ui, restart_menu):
                 if bus is not None:
                     bus.shutdown()
                     console.print("[dim]Шина закрыта.[/]")
-                    
-            # ️ КРИТИЧНО: Пауза перед возвратом в меню
-            input("\nНажмите Enter для продолжения...")
 
         elif test_number == "00":
             break
