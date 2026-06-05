@@ -6,7 +6,7 @@ def test_can_check_msgs(bus_binar):
     # 10FF0080 18FF0580 18FF0480 18FF0380 18FF0280 18FE6D80 18EA4480 72C control
     hmi_flag = False
     car_flag = False
-    timeout = 10.0  # секунды
+    timeout = 1.0  # секунды
     start_time = time()
     found_ids = []
     while time() - start_time < timeout:

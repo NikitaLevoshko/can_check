@@ -8,8 +8,37 @@ import sys
 import platform
 import can
 import subprocess
+import time
+import threading
 
 IS_WINDOWS = platform.system() == "Windows"
+
+
+def run_test_infinite(bus, console, stop_event):
+    """Функция для запуска теста в бесконечном цикле"""
+    from src.tests.test_can import test_can_check_msgs
+    
+    while not stop_event.is_set():
+        try:
+            console.print("[cyan]Запуск новой итерации теста...[/]")
+            test_can_check_msgs(bus)
+            console.print("[green]✅ Итерация завершена успешно[/]\n")
+        except AssertionError as e:
+            # Если assert упал, но это не ошибка остановки - выводим
+            if not stop_event.is_set():
+                console.print(f"[red] Assert failed: {e}[/]\n")
+        except can.CanOperationError as e:
+            # Игнорируем ошибки чтения при закрытии шины
+            if "Bad file descriptor" in str(e) or stop_event.is_set():
+                break
+            console.print(f"[red]Ошибка CAN: {e}[/]\n")
+        except Exception as e:
+            if stop_event.is_set():
+                break
+            console.print(f"[red] Ошибка: {type(e).__name__}: {e}[/]\n")
+        
+        # Ждем либо 0.5 сек, либо сигнала остановки (мгновенная реакция на 'q')
+        stop_event.wait(timeout=0.5) 
 
 
 def get_can_bus():
@@ -31,6 +60,7 @@ def get_can_bus():
         return can.Bus(interface='socketcan', channel='can1', bitrate=500000)
 
 
+
 def main(write_and_read, ui, restart_menu):
     while True:
         test_number = ui(write_and_read)
@@ -40,48 +70,57 @@ def main(write_and_read, ui, restart_menu):
             console.print("\n[green]Инициализация CAN-шины...[/]")
             
             bus = None
+            # ⚠️ ВАЖНО: Создаем НОВОЕ событие для каждого запуска
+            stop_event = threading.Event() 
+            
             try:
-                # Создаем шину
                 bus = get_can_bus()
-                console.print("[green]Шина открыта. Запуск теста...[/]\n")
+                console.print("[green]Шина открыта. Тест запущен в бесконечном режиме.[/]")
+                console.print("[yellow]Нажмите '4' + Enter для остановки теста[/]\n")
                 
-                # Импортируем тест только в момент запуска (безопаснее для exe)
-                from src.tests.test_can import test_can_check_msgs
+                test_thread = threading.Thread(
+                    target=run_test_infinite, 
+                    args=(bus, console, stop_event), 
+                    daemon=True
+                )
+                test_thread.start()
                 
-                # Передаем созданную шину в тест
-                test_can_check_msgs(bus)
-                
-                console.print("\n[green]Тест успешно завершен![/]")
-                
-            # except ImportError as e:
-            #     console.print(f"\n[red]Ошибка импорта теста: {e}[/]")
-            #     console.print("[yellow]Убедитесь, что src/tests/test_can.py существует[/]")
-                
+                # Ждем ввода пользователя
+                while not stop_event.is_set():
+                    user_input = input().strip().lower()
+                    if user_input == '4':
+                        stop_event.set()
+                        console.print("[yellow]Остановка теста...[/]")
+                        break
+                        
             except can.CanError as e:
                 console.print(f"\n[red]Ошибка CAN: {e}[/]")
-                console.print("[yellow]Проверьте подключение адаптера и драйверы[/]")
-                
-            except AssertionError as e:
-                console.print(f"\n[red]Assert failed: {e}[/]")
-                
             except Exception as e:
                 console.print(f"\n[red]Неожиданная ошибка: {type(e).__name__}: {e}[/]")
-            
             finally:
-                # Всегда закрываем шину, даже если тест упал
+                # Сначала сигнализируем потоку об остановке
+                stop_event.set()
+                # Даем потоку время на корректное завершение (макс 2 сек)
+                test_thread.join(timeout=2.0)
+                
                 if bus is not None:
-                    bus.shutdown()
+                    try:
+                        bus.shutdown()
+                    except Exception:
+                        pass # Игнорируем ошибки shutdown, если шина уже мертва
                     console.print("[dim]Шина закрыта.[/]")
+                    
+            input("Нажмите Enter для возврата в меню...")
 
         elif test_number == "00":
             break
-        elif test_number == "0":
-            pass
+        # elif test_number == "0":
+        #     pass
         else:
             print("Повторите запуск с релевантным вводом")
         
-        if restart_menu() == 1:
-            break
+        # if restart_menu() == 1:
+        #     break
 
 
 def restart_menu():
@@ -127,17 +166,17 @@ def ui(write_and_read):
     console = Console()
     table = Table()
 
-    table.add_column("Модуль", justify="left", style="cyan", width=10)
-    table.add_column("Состояние", style="bold", width=20)
-    table.add_column("Возможный метод исправления", width=30)
-    table.add_column("Примечание", justify="left", style="green", width=15)
+    # table.add_column("Модуль", justify="left", style="cyan", width=10)
+    # table.add_column("Состояние", style="bold", width=20)
+    # table.add_column("Возможный метод исправления", width=30)
+    # table.add_column("Примечание", justify="left", style="green", width=15)
 
-    # Пустая строка добавляется без ошибок, как вы и указали
-    table.add_row("", "", "", "") 
+    # # Пустая строка добавляется без ошибок, как вы и указали
+    # table.add_row("", "", "", "") 
 
-    console.print(
-        Panel(table, title="СОСТОЯНИЕ СИСТЕМЫ ТЕСТИРОВАНИЯ", border_style="white")
-    )
+    # console.print(
+    #     Panel(table, title="СОСТОЯНИЕ СИСТЕМЫ ТЕСТИРОВАНИЯ", border_style="white")
+    # )
 
     instruction_text = Text()
     instruction_text.append("Для тестирования ", style="white")
@@ -146,8 +185,8 @@ def ui(write_and_read):
     instruction_text.append("1\n", style="bold cyan")
     instruction_text.append("Для выхода введите ", style="white")
     instruction_text.append("00\n", style="bold cyan")
-    instruction_text.append("Для перезапуска меню введите ", style="white")
-    instruction_text.append("0", style="bold cyan")
+    # instruction_text.append("Для перезапуска меню введите ", style="white")
+    # instruction_text.append("0", style="bold cyan")
 
     console.print(
         Panel(
