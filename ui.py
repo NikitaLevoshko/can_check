@@ -37,7 +37,7 @@ def main(write_and_read, ui, restart_menu):
         
         if test_number == "1":
             console = Console()
-            console.print("\n[bold cyan]Инициализация CAN-шины...[/]")
+            console.print("\n[green]Инициализация CAN-шины...[/]")
             
             bus = None
             try:
@@ -51,21 +51,21 @@ def main(write_and_read, ui, restart_menu):
                 # Передаем созданную шину в тест
                 test_can_check_msgs(bus)
                 
-                console.print("\n[bold green]✅ Тест успешно завершен![/]")
+                console.print("\n[green]Тест успешно завершен![/]")
                 
-            except ImportError as e:
-                console.print(f"\n[bold red]❌ Ошибка импорта теста: {e}[/]")
-                console.print("[yellow]Убедитесь, что src/tests/test_can.py существует[/]")
+            # except ImportError as e:
+            #     console.print(f"\n[red]Ошибка импорта теста: {e}[/]")
+            #     console.print("[yellow]Убедитесь, что src/tests/test_can.py существует[/]")
                 
             except can.CanError as e:
-                console.print(f"\n[bold red]❌ Ошибка CAN: {e}[/]")
+                console.print(f"\n[red]Ошибка CAN: {e}[/]")
                 console.print("[yellow]Проверьте подключение адаптера и драйверы[/]")
                 
             except AssertionError as e:
-                console.print(f"\n[bold red]❌ Assert failed: {e}[/]")
+                console.print(f"\n[red]Assert failed: {e}[/]")
                 
             except Exception as e:
-                console.print(f"\n[bold red]❌ Неожиданная ошибка: {type(e).__name__}: {e}[/]")
+                console.print(f"\n[red]Неожиданная ошибка: {type(e).__name__}: {e}[/]")
             
             finally:
                 # Всегда закрываем шину, даже если тест упал

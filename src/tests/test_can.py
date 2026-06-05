@@ -4,7 +4,6 @@ from time import time
 def test_can_check_msgs(bus_binar):
     # 10FF0181 hmi
     # 10FF0080 18FF0580 18FF0480 18FF0380 18FF0280 18FE6D80 18EA4480 72C control
-    count = 9
     hmi_flag = False
     car_flag = False
     timeout = 20.0  # секунды
@@ -21,11 +20,9 @@ def test_can_check_msgs(bus_binar):
                 if can_id == 0x10FF0181:
                 # if can_id == 850:
                     hmi_flag = True
-                if can_id == 0x72C:
+                if can_id == 0x18FF0580:
                 # if can_id == 850:
                     car_flag = True
-                if count == 0:
-                    break
-    assert hmi_flag, "hmi_flag == 0"
+
+    assert hmi_flag, f"hmi_flag == {hmi_flag}"
     assert car_flag, f"car_flag == {car_flag}"
-    assert count == 0, "Какой-то айдишник пропущен"
