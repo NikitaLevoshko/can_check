@@ -17,7 +17,15 @@ def get_can_bus():
     if IS_WINDOWS:
         # Для Windows обычно используется pcan, kvaser или vector
         # Укажите здесь ваш реальный интерфейс и канал!
-        return can.Bus(interface='pcan', channel='PCAN_USBBUS1', bitrate=500000)
+        # Вместо жесткого 'PCAN_USBBUS1'
+        configs = can.detect_available_configs(interfaces=['pcan'])
+        if configs:
+            channel = configs[0]['channel'] # Автоматически возьмет PCAN_USBBUS1 (или другой, если он первый)
+        else:
+            raise Exception("Адаптеры PEAK не найдены")
+
+        return can.Bus(interface='pcan', channel=channel, bitrate=500000)
+        # return can.Bus(interface='pcan', channel='PCAN_USBBUS1', bitrate=500000)
     else:
         # Для Linux (Orange Pi)
         return can.Bus(interface='socketcan', channel='can0', bitrate=500000)
