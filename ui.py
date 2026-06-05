@@ -26,10 +26,21 @@ def main(write_and_read, ui, restart_menu):
         test_number = ui(write_and_read)
         if test_number == "1":
             test_file = resource_path("src/tests/test_can.py")
+            test_dir = os.path.dirname(test_file)
+            
+            # Устанавливаем PYTHONPATH, чтобы pytest видел все модули внутри exe
+            env = os.environ.copy()
+            if getattr(sys, 'frozen', False):
+                # Добавляем корень временной папки _MEIPASS в путь поиска
+                env['PYTHONPATH'] = sys._MEIPASS
+            
+            
             result = subprocess.run(
                 [sys.executable, "-m", "pytest", test_file, "-v"],
-                cwd=os.path.dirname(test_file)
-                )
+                cwd=test_dir,
+                env=env  # Передаём модифицированное окружение
+            )
+                 
         elif test_number == "00":
             break
         elif test_number == "0":
