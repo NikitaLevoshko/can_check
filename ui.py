@@ -22,7 +22,7 @@ def run_test_infinite(bus, console, stop_event):
         try:
             console.print("[cyan]Запуск новой итерации теста...[/]")
             test_can_check_msgs(bus)
-            console.print("[green]✅ Итерация завершена успешно[/]\n")
+            console.print("[green]Оба сигнала обнаружены[/]\n")
         except AssertionError as e:
             # Если assert упал, но это не ошибка остановки - выводим
             if not stop_event.is_set():

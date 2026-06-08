@@ -1,45 +1,55 @@
-from time import time
+from time import time, sleep
 
 def test_can_check_msgs(bus_binar):
     timeout = 1.0
-    silence_timeout = 0.3  # Если тишина > 0.3с — считаем, что устройство выключилось
+    silence_timeout = 0.2
+    poll_interval = 0.01
+    
+    _flush_bus_buffer(bus_binar)
     
     start_time = time()
     last_msg_time = start_time
     
-    found_ids = set()  # Используем set для быстрого поиска
-    hmi_seen_in_cycle = False
-    car_seen_in_cycle = False
+    hmi_ok = False
+    car_ok = False
     
     while time() - start_time < timeout:
-        msg = bus_binar.recv(timeout=0.01)  # Уменьшил recv-таймаут для更快的 реакции
+        msg = bus_binar.recv(timeout=0.0)
         
         if msg is not None:
             last_msg_time = time()
-            can_id = msg.arbitration_id
+            aid = msg.arbitration_id
             
-            if can_id == 0x10FF0181:
-                hmi_seen_in_cycle = True
-                found_ids.add(can_id)
-            elif can_id == 0x18FF0580:
-                car_seen_in_cycle = True
-                found_ids.add(can_id)
+            if aid == 0x10FF0181: 
+                hmi_ok = True
+            if aid == 0x18FF0580: 
+                car_ok = True
                 
-            # Оба сообщения получены в текущем цикле — успех
-            if hmi_seen_in_cycle and car_seen_in_cycle:
-                print("✅ Оба сообщения обнаружены!")
-                return  # Успешный выход
-                
+            if hmi_ok and car_ok:
+                return
         else:
-            # Проверяем "тишину" на шине
             if time() - last_msg_time > silence_timeout:
-                # print(f"️ Тишина на шине {silence_timeout}s. Сигнал пропал.")
-                break  # Выходим из цикла, чтобы assert ниже сработал
+                break
+        
+        sleep(poll_interval)
     
-    # Если вышли по таймауту или тишине — проверяем флаги
-    if hmi_seen_in_cycle:
-        assert car_seen_in_cycle, f"Control (0x18FF0580) не обнаружен"
-    elif car_seen_in_cycle:
-        assert hmi_seen_in_cycle, f"HMI (0x10FF0181) не обнаружен"
+    if hmi_ok:
+        assert car_ok, f"Control (0x18FF0580) не обнаружен"
+    elif car_ok:
+        assert hmi_ok, f"HMI (0x10FF0181) не обнаружен"
     else:
-        assert hmi_seen_in_cycle+car_seen_in_cycle==True, f"Оба сигнала не обнаружены"
+        assert hmi_ok+car_ok==True, f"Оба сигнала не обнаружены"
+
+
+def _flush_bus_buffer(bus, max_flush_time=0.1):
+    flush_start = time()
+    flushed_count = 0
+    while time() - flush_start < max_flush_time:
+        msg = bus.recv(timeout=0.0)
+        if msg is None:
+            break  # Буфер пуст
+        flushed_count += 1
+    
+    if flushed_count > 0:
+        # print(f"[DEBUG] Сброшено {flushed_count} старых сообщений из буфера")
+        pass
